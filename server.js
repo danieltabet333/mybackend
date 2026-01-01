@@ -19,20 +19,6 @@ const app = express();
 app.use(cors({ origin: process.env.FRONTEND_URL || "*", credentials: true }));
 app.use(express.json());
 
-// ----------- Serve frontend build -----------
-const buildPath = path.join(__dirname, "build"); // <-- React build folder
-if (fs.existsSync(buildPath)) {
-  app.use(express.static(buildPath));
-}
-
-// ----------- ROOT ROUTE (API health check) -----------
-app.get("/api", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    message: "DreamTime backend is running"
-  });
-});
-
 // ----------- Ensure images folder exists -----------
 const imagesDir = path.join(__dirname, "images");
 if (!fs.existsSync(imagesDir)) {
@@ -58,7 +44,15 @@ const db = mysql.createPool({
   port: Number(process.env.DB_PORT) || 3306
 });
 
-// ----------- ROUTES -----------
+// ----------- API ROUTES -----------
+
+// Health check
+app.get("/api", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    message: "DreamTime backend is running"
+  });
+});
 
 // Menu routes
 app.get("/menu", (req, res) => {
@@ -97,12 +91,16 @@ app.delete("/menu/:id", (req, res) => {
 });
 
 // ----------- Serve React frontend for all other routes -----------
+
+// Serve static files first
+const buildPath = path.join(__dirname, "build");
+if (fs.existsSync(buildPath)) {
+  app.use(express.static(buildPath));
+}
+
+// This should always come **after all API routes**
 app.get("*", (req, res) => {
-  if (fs.existsSync(path.join(__dirname, "build", "index.html"))) {
-    res.sendFile(path.join(__dirname, "build", "index.html"));
-  } else {
-    res.status(404).send("Frontend not found");
-  }
+  res.sendFile(path.join(buildPath, "index.html"));
 });
 
 // ----------- Start server -----------
