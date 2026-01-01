@@ -10,7 +10,7 @@ import { fileURLToPath } from "url";
 
 dotenv.config();
 
-// Fix __dirname for ES Modules
+// Fix __dirname in ES module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -24,16 +24,13 @@ app.use(cors({
 
 app.use(express.json());
 
-// Serve static images
+// Serve images folder
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
-// Multer setup for uploads
+// Multer setup for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, "images")),
-  filename: (req, file, cb) => cb(
-    null,
-    file.originalname + "_" + Date.now() + path.extname(file.originalname)
-  )
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 });
 const upload = multer({ storage });
 
@@ -46,38 +43,34 @@ const db = mysql.createPool({
   port: process.env.DB_PORT
 });
 
-// --------- API ROUTES ---------
-
-// GET all menu items
+// --------- ROUTES ---------
 app.get("/menu", (req, res) => {
   const q = "SELECT * FROM menu";
   db.query(q, (err, data) => {
     if (err) return res.json(err);
-    for (const d of data) {
+    data.forEach(d => {
       if (d.image) {
-        d.image = fs.readFileSync(path.join(__dirname, "images", d.image)).toString("base64");
+        d.image = fs.readFileSync(path.join(__dirname, 'images', d.image)).toString('base64');
       }
-    }
+    });
     res.json(data);
   });
 });
 
-// GET single menu item
 app.get("/menu/:id", (req, res) => {
   const q = "SELECT * FROM menu WHERE id = ?";
   db.query(q, [req.params.id], (err, data) => {
     if (err) return res.json(err);
     if (data[0]?.image) {
-      data[0].image = fs.readFileSync(path.join(__dirname, "images", data[0].image)).toString("base64");
+      data[0].image = fs.readFileSync(path.join(__dirname, 'images', data[0].image)).toString('base64');
     }
     res.json(data[0]);
   });
 });
 
-// ADD new menu item
 app.post("/menu", upload.single("image"), (req, res) => {
   const { name, description, price } = req.body;
-  const image = req.file ? req.file.filename : null;
+  const image = req.file?.filename || null;
   const q = "INSERT INTO menu(`name`,`description`,`price`,`image`) VALUES (?,?,?,?)";
   db.query(q, [name, description, price, image], (err, data) => {
     if (err) return res.json(err);
@@ -85,7 +78,6 @@ app.post("/menu", upload.single("image"), (req, res) => {
   });
 });
 
-// DELETE menu item
 app.delete("/menu/:id", (req, res) => {
   const q = "DELETE FROM menu WHERE id = ?";
   db.query(q, [req.params.id], (err, data) => {
@@ -94,10 +86,9 @@ app.delete("/menu/:id", (req, res) => {
   });
 });
 
-// UPDATE menu item
 app.post("/menu/:id", upload.single("image"), (req, res) => {
   const { name, description, price } = req.body;
-  const image = req.file ? req.file.filename : null;
+  const image = req.file?.filename || null;
 
   let q, params;
   if (image) {
@@ -115,7 +106,5 @@ app.post("/menu/:id", upload.single("image"), (req, res) => {
 });
 
 // --------- START SERVER ---------
-const PORT = process.env.PORT || 5000; // Railway will set process.env.PORT automatically
-app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
