@@ -16,11 +16,17 @@ const __dirname = path.dirname(__filename);
 
 // ----------- App setup -----------
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+app.use(cors({ origin: process.env.FRONTEND_URL || "*", credentials: true }));
 app.use(express.json());
 
-// ✅ ROOT ROUTE — MUST BE AFTER app is created
-app.get("/", (req, res) => {
+// ----------- Serve frontend build -----------
+const buildPath = path.join(__dirname, "build"); // <-- React build folder
+if (fs.existsSync(buildPath)) {
+  app.use(express.static(buildPath));
+}
+
+// ----------- ROOT ROUTE (API health check) -----------
+app.get("/api", (req, res) => {
   res.status(200).json({
     status: "OK",
     message: "DreamTime backend is running"
@@ -54,6 +60,7 @@ const db = mysql.createPool({
 
 // ----------- ROUTES -----------
 
+// Menu routes
 app.get("/menu", (req, res) => {
   db.query("SELECT * FROM menu", (err, data) => {
     if (err) return res.status(500).json(err);
@@ -87,6 +94,15 @@ app.delete("/menu/:id", (req, res) => {
     if (err) return res.status(500).json(err);
     res.json(data);
   });
+});
+
+// ----------- Serve React frontend for all other routes -----------
+app.get("*", (req, res) => {
+  if (fs.existsSync(path.join(__dirname, "build", "index.html"))) {
+    res.sendFile(path.join(__dirname, "build", "index.html"));
+  } else {
+    res.status(404).send("Frontend not found");
+  }
 });
 
 // ----------- Start server -----------
