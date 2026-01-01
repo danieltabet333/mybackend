@@ -1,3 +1,6 @@
+// -----------------------------
+// Imports
+// -----------------------------
 import express from "express";
 import mysql from "mysql2";
 import cors from "cors";
@@ -5,50 +8,56 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
+import { fileURLToPath } from "url";
 
+// -----------------------------
+// Fix __dirname in ES Modules
+// -----------------------------
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// -----------------------------
+// Config
+// -----------------------------
 dotenv.config();
-
 const app = express();
 
-// --- CORS ---
 app.use(cors({
   origin: process.env.FRONTEND_URL || "*",
   credentials: true
 }));
-
-// --- JSON parsing ---
 app.use(express.json());
 
-// --- Static images (optional for testing, production should use cloud storage) ---
-app.use(express.static("images"));
+// Serve static images
+app.use('/images', express.static(path.join(__dirname, 'images')));
 
-// --- Multer setup for file uploads ---
+// -----------------------------
+// Multer setup for file uploads
+// -----------------------------
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "images/"),
-  filename: (req, file, cb) =>
-    cb(null, file.originalname + "_" + Date.now() + path.extname(file.originalname))
+  destination: (req, file, cb) => {
+    cb(null, "images/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, file.originalname + "_" + Date.now() + path.extname(file.originalname));
+  },
 });
 const upload = multer({ storage });
 
-// --- MySQL pool ---
+// -----------------------------
+// MySQL database pool
+// -----------------------------
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
-  port: Number(process.env.DB_PORT),
+  port: process.env.DB_PORT,
 });
 
-// --- Test DB connection ---
-db.getConnection((err, connection) => {
-  if (err) console.error("DB connection failed:", err);
-  else {
-    console.log("DB connected successfully!");
-    connection.release();
-  }
-});
-
-// --- API ROUTES ---
+// -----------------------------
+// API Routes
+// -----------------------------
 
 // GET all menu items
 app.get("/menu", (req, res) => {
@@ -119,12 +128,10 @@ app.post("/menu/:id", upload.single("image"), (req, res) => {
   });
 });
 
-// --- Serve frontend build (optional) ---
-app.use(express.static(path.join(__dirname, "../frontend/build")));
-app.get("*", (req, res) => {
-  res.sendFile(path.resolve(__dirname, "../frontend/build", "index.html"));
-});
-
-// --- Start server ---
+// -----------------------------
+// Start server
+// -----------------------------
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log("Backend running on port", PORT));
+app.listen(PORT, () => {
+  console.log("Backend running on port", PORT);
+});
