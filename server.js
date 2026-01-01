@@ -40,17 +40,18 @@ const db = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
-  port: process.env.DB_PORT
+  port: Number(process.env.DB_PORT) || 3306
 });
 
 // --------- ROUTES ---------
 app.get("/menu", (req, res) => {
   const q = "SELECT * FROM menu";
   db.query(q, (err, data) => {
-    if (err) return res.json(err);
+    if (err) return res.status(500).json(err);
     data.forEach(d => {
       if (d.image) {
-        d.image = fs.readFileSync(path.join(__dirname, 'images', d.image)).toString('base64');
+        const imgPath = path.join(__dirname, 'images', d.image);
+        if (fs.existsSync(imgPath)) d.image = fs.readFileSync(imgPath).toString('base64');
       }
     });
     res.json(data);
@@ -60,9 +61,10 @@ app.get("/menu", (req, res) => {
 app.get("/menu/:id", (req, res) => {
   const q = "SELECT * FROM menu WHERE id = ?";
   db.query(q, [req.params.id], (err, data) => {
-    if (err) return res.json(err);
+    if (err) return res.status(500).json(err);
     if (data[0]?.image) {
-      data[0].image = fs.readFileSync(path.join(__dirname, 'images', data[0].image)).toString('base64');
+      const imgPath = path.join(__dirname, 'images', data[0].image);
+      if (fs.existsSync(imgPath)) data[0].image = fs.readFileSync(imgPath).toString('base64');
     }
     res.json(data[0]);
   });
@@ -73,7 +75,7 @@ app.post("/menu", upload.single("image"), (req, res) => {
   const image = req.file?.filename || null;
   const q = "INSERT INTO menu(`name`,`description`,`price`,`image`) VALUES (?,?,?,?)";
   db.query(q, [name, description, price, image], (err, data) => {
-    if (err) return res.json(err);
+    if (err) return res.status(500).json(err);
     res.json(data);
   });
 });
@@ -81,7 +83,7 @@ app.post("/menu", upload.single("image"), (req, res) => {
 app.delete("/menu/:id", (req, res) => {
   const q = "DELETE FROM menu WHERE id = ?";
   db.query(q, [req.params.id], (err, data) => {
-    if (err) return res.json(err);
+    if (err) return res.status(500).json(err);
     res.json(data);
   });
 });
@@ -100,7 +102,7 @@ app.post("/menu/:id", upload.single("image"), (req, res) => {
   }
 
   db.query(q, params, (err, data) => {
-    if (err) return res.json(err);
+    if (err) return res.status(500).json(err);
     res.json(data);
   });
 });
